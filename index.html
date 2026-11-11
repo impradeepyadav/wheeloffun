@@ -456,6 +456,30 @@ main{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:0
   .footer-icon{width:16px;height:16px;}
 }
 
+/* ===== FIX #2: base (light-mode) styles for the reset-confirmation dialog ===== */
+.reset-modal-box{background:#ffffff;border:none;border-radius:14px;max-width:440px;width:100%;box-shadow:0 24px 60px -12px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,0.06);overflow:hidden;display:flex;flex-direction:column;position:relative;}
+.reset-header{display:flex;align-items:center;gap:12px;padding:20px 22px 16px;border-bottom:1px solid #e5e7eb;}
+.reset-icon-wrap{width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.12);color:#ef4444;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.reset-title{font-size:18px;font-weight:700;color:#111827;margin:0;flex:1;letter-spacing:-0.2px;}
+.reset-close{background:transparent;border:none;font-size:24px;line-height:1;color:#6b7280;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;flex-shrink:0;font-family:inherit;}
+.reset-close:hover{background:#f3f4f6;color:#111827;}
+.reset-body{padding:20px 22px 8px;}
+.reset-body > p{font-size:14px;color:#4b5563;line-height:1.55;margin:0 0 14px;}
+.reset-body > p strong{color:#111827;font-weight:700;}
+.reset-list{list-style:none;padding:0;margin:0 0 16px 0;display:flex;flex-direction:column;gap:8px;}
+.reset-list li{font-size:13.5px;color:#374151;line-height:1.4;padding-left:22px;position:relative;}
+.reset-list li::before{content:'';position:absolute;left:4px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,0.15);}
+.reset-warning-banner{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#b45309;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.reset-warning-banner svg{flex-shrink:0;}
+.reset-footer{display:flex;gap:10px;justify-content:flex-end;padding:16px 22px 20px;border-top:1px solid #e5e7eb;background:#f9fafb;}
+.reset-btn-cancel{background:#ffffff;color:#374151;border:1px solid #d1d5db;padding:9px 18px;font-size:13.5px;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;}
+.reset-btn-cancel:hover{background:#f9fafb;border-color:#9ca3af;}
+.reset-btn-danger{background:#ef4444;color:#ffffff;border:1px solid #ef4444;padding:9px 18px;font-size:13.5px;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 6px rgba(239,68,68,0.25);}
+.reset-btn-danger:hover{background:#dc2626;border-color:#dc2626;}
+
+/* FIX #1: raise the reset dialog above the settings dialog (defensive) */
+#resetConfirmModal{z-index:10005;}
+
 @media (prefers-color-scheme: dark){
   .reset-modal-box{background:#0f1620;border:1px solid #1e2836;}
   .reset-icon-wrap{background:rgba(239,68,68,0.15);color:#f87171;}
@@ -585,11 +609,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <svg aria-hidden="true"><use href="#i-pie"/></svg><span class="nav-text">New Wheel</span>
         </button>
         <div class="tools-menu" id="newWheelMenu" role="menu" aria-label="Choose a wheel">
-          <button type="button" class="tools-menu-item" role="menuitem" onclick="startBlankWheel();closeNewWheelMenu();">
+          <button type="button" class="tools-menu-item" data-static="1" role="menuitem" onclick="startBlankWheel();closeNewWheelMenu();">
             <svg aria-hidden="true"><use href="#i-plus"/></svg>
             <span class="tools-item-content"><span class="tools-item-title">Blank Wheel</span><span class="tools-item-sub">Start from scratch</span></span>
           </button>
-          <div class="tools-menu-divider"></div>
+          <div class="tools-menu-divider" data-static="1"></div>
         </div>
       </div>
       <div class="nav-new-wrap">
@@ -1026,7 +1050,7 @@ Grace</textarea>
   <div class="modal-box">
     <h3 id="shareModalTitle">Share Result</h3>
     <p>Copy the text below and paste it into your group chat.</p>
-    <textarea id="shareText" readonly></textarea>
+    <textarea id="shareText" readonly aria-label="Shareable text"></textarea>
     <div class="modal-actions">
       <button type="button" class="btn btn-outline" onclick="closeShareModal()">Close</button>
       <button type="button" class="btn btn-primary" onclick="copyShareText()">Copy</button>
@@ -1445,10 +1469,14 @@ function saveAndCloseSettings(){
   settingsSnapshot = null;
   syncBodyScroll();
 }
-function closeSettingsModal(){ saveAndCloseSettings(); }
 
+/* FIX #1: close settings first, then open the reset dialog on top */
 function openResetModal(){
   if(blockIfSpinning())return;
+  var settingsModal=document.getElementById('settingsModal');
+  if(settingsModal && settingsModal.classList.contains('active')){
+    cancelSettingsModal();
+  }
   var m=document.getElementById('resetConfirmModal');
   if(!m)return;
   m.classList.add('active');
@@ -1485,7 +1513,7 @@ function applySegmentedSetting(setting,value){
       if(soundEnabled){initAudio();if(!musicGainNode)startMusic();}
       else{stopMusic();}
     }
-    if(soundEnabled){initAudio();ensureAudio();playTick();}
+    if(soundEnabled){initAudio();ensureAudio();playTick(true);}
   }
   saveWheelSettings();
 }
@@ -1513,7 +1541,22 @@ function toggleNewWheelMenu(e){if(e)e.stopPropagation();var menu=document.getEle
 function closeNewWheelMenu(){var menu=document.getElementById('newWheelMenu');var btn=document.getElementById('newWheelMenuBtn');if(menu)menu.classList.remove('show');if(btn)btn.setAttribute('aria-expanded','false');}
 function toggleFileMenu(e){if(e)e.stopPropagation();var menu=document.getElementById('fileMenu');var btn=document.getElementById('fileMenuBtn');if(!menu)return;closeLangMenu();closeNewWheelMenu();if(menu.classList.contains('show')){closeFileMenu();}else{menu.classList.add('show');positionDropdownMenu(btn,menu);if(btn)btn.setAttribute('aria-expanded','true');}}
 function closeFileMenu(){var menu=document.getElementById('fileMenu');var btn=document.getElementById('fileMenuBtn');if(menu)menu.classList.remove('show');if(btn)btn.setAttribute('aria-expanded','false');}
-function renderNewWheelMenu(){var menu=document.getElementById('newWheelMenu');if(!menu)return;var items=menu.querySelectorAll('.tools-menu-item');for(var i=items.length-1;i>=1;i--){items[i].remove();}var dividers=menu.querySelectorAll('.tools-menu-divider');for(var d=dividers.length-1;d>=1;d--)dividers[d].remove();for(var j=0;j<WHEEL_PRESETS.length;j++){var p=WHEEL_PRESETS[j];var btn=document.createElement('button');btn.type='button';btn.className='tools-menu-item';btn.setAttribute('role','menuitem');btn.onclick=(function(idx){return function(){loadPreset(idx);closeNewWheelMenu();};})(j);btn.innerHTML='<span class="preset-emoji-icon" aria-hidden="true">'+p.icon+'</span><span class="tools-item-content"><span class="tools-item-title">'+escHtml(p.title)+'</span><span class="tools-item-sub">'+escHtml(p.subtitle)+'</span></span>';menu.appendChild(btn);}}
+
+/* FIX #5: only remove dynamic menu items (static ones are marked with data-static) */
+function renderNewWheelMenu(){
+  var menu=document.getElementById('newWheelMenu');
+  if(!menu)return;
+  var dynamicEls=menu.querySelectorAll('.tools-menu-item:not([data-static]), .tools-menu-divider:not([data-static])');
+  for(var r=dynamicEls.length-1;r>=0;r--){dynamicEls[r].remove();}
+  for(var j=0;j<WHEEL_PRESETS.length;j++){
+    var p=WHEEL_PRESETS[j];
+    var btn=document.createElement('button');
+    btn.type='button';btn.className='tools-menu-item';btn.setAttribute('role','menuitem');
+    btn.onclick=(function(idx){return function(){loadPreset(idx);closeNewWheelMenu();};})(j);
+    btn.innerHTML='<span class="preset-emoji-icon" aria-hidden="true">'+p.icon+'</span><span class="tools-item-content"><span class="tools-item-title">'+escHtml(p.title)+'</span><span class="tools-item-sub">'+escHtml(p.subtitle)+'</span></span>';
+    menu.appendChild(btn);
+  }
+}
 document.addEventListener('click',function(e){if(!e.target.closest('.nav-lang-wrap'))closeLangMenu();if(!e.target.closest('.nav-new-wrap')){closeNewWheelMenu();closeFileMenu();}},{passive:true});
 window.addEventListener('scroll',function(){var langMenu=document.getElementById('langMenu');var newMenu=document.getElementById('newWheelMenu');var fileMenu=document.getElementById('fileMenu');if(langMenu&&langMenu.classList.contains('show')){var lbtn=document.getElementById('langMenuBtn');if(lbtn){var lr=lbtn.getBoundingClientRect();if(lr.bottom<0||lr.top>window.innerHeight){closeLangMenu();}else{positionDropdownMenu(lbtn,langMenu);}}}if(newMenu&&newMenu.classList.contains('show')){var nbtn=document.getElementById('newWheelMenuBtn');if(nbtn){var nr=nbtn.getBoundingClientRect();if(nr.bottom<0||nr.top>window.innerHeight){closeNewWheelMenu();}else{positionDropdownMenu(nbtn,newMenu);}}}if(fileMenu&&fileMenu.classList.contains('show')){var fbtn=document.getElementById('fileMenuBtn');if(fbtn){var fr=fbtn.getBoundingClientRect();if(fr.bottom<0||fr.top>window.innerHeight){closeFileMenu();}else{positionDropdownMenu(fbtn,fileMenu);}}}},{passive:true});
 window.addEventListener('resize',function(){var langMenu=document.getElementById('langMenu');var langBtn=document.getElementById('langMenuBtn');if(langMenu&&langMenu.classList.contains('show')&&langBtn)positionDropdownMenu(langBtn,langMenu);var newMenu=document.getElementById('newWheelMenu');var newBtn=document.getElementById('newWheelMenuBtn');if(newMenu&&newMenu.classList.contains('show')&&newBtn)positionDropdownMenu(newBtn,newMenu);var fileMenu=document.getElementById('fileMenu');var fileBtn=document.getElementById('fileMenuBtn');if(fileMenu&&fileMenu.classList.contains('show')&&fileBtn)positionDropdownMenu(fileBtn,fileMenu);},{passive:true});
@@ -1541,7 +1584,7 @@ function cycleSoundVolume(){
     if(soundEnabled){initAudio();if(!musicGainNode)startMusic();}
     else{stopMusic();}
   }
-  if(soundEnabled){initAudio();ensureAudio();playTick();}
+  if(soundEnabled){initAudio();ensureAudio();playTick(true);}
   saveWheelSettings();
   var msgs=['Muted (0%)','Volume 25%','Volume 50%','Volume 75%','Volume 100%'];
   showToast(msgs[currentVolumeLevel]);
@@ -1553,7 +1596,8 @@ function initAudio(){
   if(audioCtx)audioUnlocked=true;
 }
 function ensureAudio(){if(!audioCtx)return false;if(audioCtx.state==='suspended'){audioCtx.resume().catch(function(){});}return true;}
-function playTick(){if(!soundEnabled||!audioCtx)return;var vol=0.14*getVolumeMultiplier();if(vol<=0)return;var now=audioCtx.currentTime;if(now-lastTickTime<0.014)return;lastTickTime=now;try{var osc=audioCtx.createOscillator();var gain=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(1400,now);osc.frequency.exponentialRampToValueAtTime(300,now+0.015);gain.gain.setValueAtTime(vol,now);gain.gain.exponentialRampToValueAtTime(0.0001,now+0.025);osc.connect(gain);gain.connect(audioCtx.destination);osc.start(now);osc.stop(now+0.03);}catch(e){}}
+/* FIX #8: separate the UI tick from the spin-tick rate limiter via the `force` flag */
+function playTick(force){if(!soundEnabled||!audioCtx)return;var vol=0.14*getVolumeMultiplier();if(vol<=0)return;var now=audioCtx.currentTime;if(!force && now-lastTickTime<0.014)return;lastTickTime=now;try{var osc=audioCtx.createOscillator();var gain=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(1400,now);osc.frequency.exponentialRampToValueAtTime(300,now+0.015);gain.gain.setValueAtTime(vol,now);gain.gain.exponentialRampToValueAtTime(0.0001,now+0.025);osc.connect(gain);gain.connect(audioCtx.destination);osc.start(now);osc.stop(now+0.03);}catch(e){}}
 function playSweetMusic(){if(!soundEnabled||!audioCtx)return;var vol=0.24*getVolumeMultiplier();if(vol<=0)return;var now=audioCtx.currentTime;var notes=[{f:523.25,t:0.0,d:1.5},{f:659.25,t:0.15,d:1.5},{f:783.99,t:0.3,d:1.5},{f:1046.50,t:0.45,d:2.0},{f:1318.51,t:0.8,d:1.5},{f:1567.98,t:1.1,d:2.5}];notes.forEach(function(n){var osc1=audioCtx.createOscillator();var osc2=audioCtx.createOscillator();var gain=audioCtx.createGain();osc1.type='sine';osc1.frequency.value=n.f;osc2.type='triangle';osc2.frequency.value=n.f*2;var start=now+n.t;gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(vol,start+0.05);gain.gain.exponentialRampToValueAtTime(0.001,start+n.d);osc1.connect(gain);osc2.connect(gain);gain.connect(audioCtx.destination);osc1.start(start);osc1.stop(start+n.d);osc2.start(start);osc2.stop(start+n.d);});}
 function playSubduedApplause(){if(!soundEnabled||!audioCtx)return;var vol=0.13*getVolumeMultiplier();if(vol<=0)return;var now=audioCtx.currentTime;var clapCount=10+Math.floor(Math.random()*5);for(var i=0;i<clapCount;i++){var t=now+i*0.09+Math.random()*0.04;var size=Math.floor(audioCtx.sampleRate*0.025);var buffer=audioCtx.createBuffer(1,size,audioCtx.sampleRate);var data=buffer.getChannelData(0);for(var j=0;j<size;j++){data[j]=(Math.random()*2-1)*Math.exp(-j/(size*0.12));}var src=audioCtx.createBufferSource();src.buffer=buffer;var filter=audioCtx.createBiquadFilter();filter.type='bandpass';filter.frequency.value=900+Math.random()*1800;filter.Q.value=1.1;var g=audioCtx.createGain();var clapVol=vol*(0.4+Math.random()*0.6);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(clapVol,t+0.003);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);src.connect(filter);filter.connect(g);g.connect(audioCtx.destination);src.start(t);src.stop(t+0.1);}}
 (function(){
@@ -1603,7 +1647,8 @@ function stopIdleSpin(){
   idleActive=false;
 }
 
-function updateEntries(){
+/* FIX #4 + #7: preserve caret during truncation and allow skipping idle start */
+function updateEntries(skipIdleStart){
   if(isSpinning)return;
   var ta=document.getElementById('entriesTextarea');if(!ta)return;
   var lines=ta.value.split('\n');
@@ -1618,8 +1663,12 @@ function updateEntries(){
   if(hitLimit||didTruncate){
     var synced=validNames.join('\n');
     if(ta.value!==synced){
+      var ss=ta.selectionStart, se=ta.selectionEnd;
       ta.value=synced;
-      try{ta.selectionStart=ta.selectionEnd=synced.length;}catch(e){}
+      try{
+        ta.selectionStart=Math.min(ss, synced.length);
+        ta.selectionEnd=Math.min(se, synced.length);
+      }catch(e){}
     }
   }
   var keep={};for(var k=0;k<validNames.length;k++)keep[validNames[k]]=true;
@@ -1631,7 +1680,10 @@ function updateEntries(){
   if(badge)badge.textContent='Entries: '+participants.length+(hitLimit?' (max)':'');
   updateSpinButtonState();rebuildWheel();
   syncPlaceholder();
-  if(participants.length>=2){var popupOpen=document.getElementById('winnerOverlay').classList.contains('show');if(!isSpinning&&!popupOpen)startIdleSpin();}else{stopIdleSpin();}
+  if(participants.length>=2){
+    var popupOpen=document.getElementById('winnerOverlay').classList.contains('show');
+    if(!skipIdleStart && !isSpinning && !popupOpen)startIdleSpin();
+  } else { stopIdleSpin(); }
 }
 var debouncedUpdateEntries=debounce(updateEntries,50);
 function syncPlaceholder(){var ta=document.getElementById('entriesTextarea');var ph=document.getElementById('fakePlaceholder');if(!ta||!ph)return;if(ta.value.trim()===''){ph.classList.remove('hidden');}else{ph.classList.add('hidden');}}
@@ -1653,10 +1705,11 @@ function handleImageUpload(event){
       updateEntries();
       var ta=document.getElementById('entriesTextarea');if(!ta)return;
       var current=ta.value.split('\n').map(function(s){return s.trim();}).filter(function(s){return s.length;});
+      /* FIX #9: prefer an exact-match entry; fall back to case-insensitive */
       var existingName=null;
-      for(var ci=0;ci<current.length;ci++){
-        var norm=normalizeEntryName(current[ci]);
-        if(norm.toLowerCase()===rawName.toLowerCase()){existingName=norm;break;}
+      for(var ci=0;ci<current.length;ci++){var norm=normalizeEntryName(current[ci]);if(norm===rawName){existingName=norm;break;}}
+      if(!existingName){
+        for(var cj=0;cj<current.length;cj++){var normj=normalizeEntryName(current[cj]);if(normj.toLowerCase()===rawName.toLowerCase()){existingName=normj;break;}}
       }
       if(existingName){
         participantImages[existingName]=dataUrl;
@@ -1689,6 +1742,8 @@ function getSavedWheelsList(){
 }
 function persistSavedWheels(list){try{localStorage.setItem(SAVED_WHEELS_KEY,JSON.stringify(list));return true;}catch(e){showToast('Storage full — delete some old saves.');return false;}}
 function serializeWheel(name){var ta=document.getElementById('entriesTextarea');var entries=ta?ta.value.split('\n').map(function(s){return s.trim();}).filter(function(s){return s.length>0;}):[];return{version:'1',name:name||'Untitled Wheel',savedAt:new Date().toISOString(),entries:entries,images:participantImages||{},settings:{colorTheme:colorTheme,spinDurationBase:spinDurationBase,segmentBorders:segmentBorders,outerRing:outerRing,showWheelText:showWheelText,showPointer:showPointer,customColors:customColors.slice(),customPopupMessage:customPopupMessage,showRemoveButton:showRemoveButton,displayPopupWithMessage:displayPopupWithMessage,applauseOnWin:applauseOnWin,confettiEnabled:confettiEnabled,autoRemoveWinner:autoRemoveWinner,musicEnabled:musicEnabled}};}
+
+/* FIX #3: don't restore musicEnabled from wheel files (it's a user preference, not wheel content) */
 function applyWheelData(data){
   if(!data||typeof data!=='object')return false;
   spinToken++;isSpinning=false;stopIdleSpin();
@@ -1721,9 +1776,10 @@ function applyWheelData(data){
     if(typeof s.applauseOnWin==='boolean')applauseOnWin=s.applauseOnWin;
     if(typeof s.confettiEnabled==='boolean')confettiEnabled=s.confettiEnabled;
     if(typeof s.autoRemoveWinner==='boolean')autoRemoveWinner=s.autoRemoveWinner;
-    if(typeof s.musicEnabled==='boolean')musicEnabled=s.musicEnabled;
+    /* NOTE: musicEnabled is intentionally NOT restored from wheel files */
     winnerHistory=[];currentWinnerIndex=-1;currentWinnerRemoved=false;
     currentRotation=0;
+    applyRotation(0); /* FIX #10: explicitly reset visual rotation */
     renderResultsList();
     updateSegmentColors();
     applyPointerVisibility();
@@ -1731,7 +1787,7 @@ function applyWheelData(data){
     applyOuterRingVisibility();
     updateSoundIcon();
     updateSegmentedUI();
-    if(musicEnabled){initAudio();startMusic();}else{stopMusic();}
+    if(musicEnabled){initAudio();if(!musicGainNode)startMusic();}else{stopMusic();}
     syncPlaceholder();
     updateEntries();
     renderPaletteGrid();
@@ -1763,7 +1819,18 @@ function renderSavedWheelsList(){
 }
 function loadWheelById(id){if(!id)return;var list=getSavedWheelsList();var w=list.filter(function(x){return x.id===id;})[0];if(!w){showToast('Wheel not found.');return;}if(applyWheelData(w)){closeLoadWheelModal();closeWinnerPopup();showToast('Loaded: '+(w.name||'Wheel'));}else{showToast('Could not load wheel.');}}
 function deleteSavedWheel(id){if(!id)return;var list=getSavedWheelsList().filter(function(x){return x.id!==id;});if(persistSavedWheels(list)){renderSavedWheelsList();showToast('Wheel deleted.');}}
-function exportWheelFile(){if(blockIfSpinning())return;var ta=document.getElementById('entriesTextarea');if(!ta||ta.value.trim()===''){showToast('No entries to export.');return;}var m=document.getElementById('exportWheelModal');if(!m)return;var input=document.getElementById('exportWheelNameInput');if(input)input.value='wheel-'+new Date().toISOString().slice(0,10);m.classList.add('active');m.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';setTimeout(function(){if(input){input.focus();input.select();}},80);}
+
+/* FIX #6: align the empty-export guard with serializeWheel() */
+function exportWheelFile(){
+  if(blockIfSpinning())return;
+  var ta=document.getElementById('entriesTextarea');
+  var entries=ta?ta.value.split('\n').map(function(s){return s.trim();}).filter(function(s){return s.length>0;}):[];
+  if(!entries.length){showToast('No entries to export.');return;}
+  var m=document.getElementById('exportWheelModal');if(!m)return;
+  var input=document.getElementById('exportWheelNameInput');if(input)input.value='wheel-'+new Date().toISOString().slice(0,10);
+  m.classList.add('active');m.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  setTimeout(function(){if(input){input.focus();input.select();}},80);
+}
 function closeExportWheelModal(){var m=document.getElementById('exportWheelModal');if(!m||!m.classList.contains('active'))return;m.classList.remove('active');m.setAttribute('aria-hidden','true');syncBodyScroll();}
 function confirmExportWheel(){var input=document.getElementById('exportWheelNameInput');var rawName=(input&&input.value.trim())||('wheel-'+new Date().toISOString().slice(0,10));var safeName=rawName.replace(/[\/\\:*?"<>|]/g,'-').replace(/\.json$/i,'').slice(0,80)||'wheel';var data=serializeWheel(safeName);var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=safeName+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);closeExportWheelModal();showToast('Wheel exported: '+safeName+'.json');}
 function triggerWheelImport(){if(blockIfSpinning())return;var inp=document.getElementById('wheelImportInput');if(inp)inp.click();}
@@ -1900,7 +1967,7 @@ function applyRotation(deg){
 function updateSpinButtonState(){var btn=document.getElementById('spinBtn');if(!btn||isSpinning)return;btn.disabled=participants.length<2;}
 function spinWheel(){
   if(isSpinning)return;
-  updateEntries();
+  updateEntries(true); /* FIX #7: skip redundant idle start inside spin */
   if(participants.length<2){showToast('Add at least 2 entries to spin.');return;}
   if(!audioUnlocked)initAudio();
   if(soundEnabled)ensureAudio();
